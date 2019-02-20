@@ -1,45 +1,55 @@
-aws-iam-authenticator HTTP Proxy
-================================
+**Disclaimer**: This is a POC only. It might have serious security implications. Use on your own risk!
 
-[![Docker Pulls](https://img.shields.io/docker/pulls/camptocamp/aws-iam-authenticator-proxy.svg)](https://hub.docker.com/r/camptocamp/aws-iam-authenticator-proxy/)
-[![Go Report Card](https://goreportcard.com/badge/github.com/camptocamp/aws-iam-authenticator-proxy)](https://goreportcard.com/report/github.com/camptocamp/aws-iam-authenticator-proxy)
-[![By Camptocamp](https://img.shields.io/badge/by-camptocamp-fb7047.svg)](http://www.camptocamp.com)
+aws-iam-authenticator-auth-proxy for dashboard
+==============================================
 
-Amazon Services require valid accounts to be used. This proxy allows external
-users to access an AWS EKS cluster without requiring access to AWS credentials.
+When provisioning an EKS clusters credentials are short lived. Due to limits on the AWS API a token is only valid for a maximum of 15 minutes.
 
-**Disclaimer**: the proxy does not implement any form of authentication. You are
-responsible for implementing whatever security measure you wish to enforce in
-front of it.
+This tool tries to solve that by enabling transparent auth on an exposed dashboard.
 
+The following requirements have to be fulfilled:
 
-### Example usage
+* Use of EKS
+* The dashboard is exposed with an nginx-ingress using a configuration that is similar to [ingress-sample.yaml]. *Example-Flow: dashboard.k8s.example.com*
+* The container
+  * for this service and the dashboard share the same main domain. *Example-Flow: k8s.example.com*
+  * is reachable by the nginx ingress controller. *Example-Flow: cluster-auth.k8s.example.com*
+* A record in this main domain can be created that points to 127.0.0.1 *Example-Flow: auth.k8s.example.com*
 
-In order to give access to an AWS EKS cluster without distribution credentials,
-you can start the proxy with the necessary credentials as well as the cluster ID. For example, using Docker:
+## Example-Flow
 
-```bash
-$ docker run --rm -p 8080:8080 \
-             -e AWS_ACCESS_KEY_ID=<AWS_ACCESS_KEY_ID> \
-             -e AWS_SECRET_ACCESS_KEY=<AWS_SECRET_ACCESS_KEY> \
-             -e EKS_CLUSTER_ID=<EKS_CLUSTER_ID> \
-    camptocamp/aws-iam-authenticator-proxy:latest
-```
+1. User opens https://dashboard.k8s.example.com
+1. nginx opens a connection to https://cluster-auth.k8s.example.com/validate (where the container is listening)
+1. The container checks for the authorisation cookie and will return 401 unauthorized, since the cookie is missing.
+1. nginx will redirect to http://auth.k8s.example.com:8080/signin?return=https://dashboard.k8s.example.com
+1. on the machine of the user the binary will validate the return URL and if it is whitelisted, it will
+  * create a valid token using the profile specified in the config file
+  * set a cookie for e.g. k8s.example.com with 15min lifetime containing this token
+  * redirect to the return URL
+1. the user will again open https://dashboard.k8s.example.com
+1. nginx will call https://cluster-auth.k8s.example.com/validate again
+1. the container will see the cookie and set a Authorization header with the cookie value
+1. the user is logged in for 15 min. After 15min the process starts again.
 
-You should then be able to retrieve authentication tokens for your user at
-http://localhost:8080.
+## Getting the client
 
-You can set up your `~/.kube/config` to use the `exec` authentication mechanism
-using `curl`:
+Run `go get github.com/allcloud-io/aws-iam-authenticator-auth-proxy`
+
+## Client Configuration
+
+Below is the sample configuration file `~/..iam-auth-proxy.yaml` that would match the above flow.
 
 ```yaml
-users:
-- name: <cluster_name>
-  user:
-    exec:
-      apiVersion: client.authentication.k8s.io/v1alpha1
-      command: curl
-      args:
-        - -s
-        - "http://<your_ip>:8080/"
+ressources:
+  example-cluster:                        # cluster-id
+    aws-profile: "AWS_PROFILE"            # AWS Profile to use
+    cookie-domain: "k8s.example.com"      # the domain to set the cookie on, has to be the common root of all three used domains
+    cookie-name: "eks-auth"               # (optional) cookie name, if changed has to be changed on the pod, too.
+    my-hostname: "auth.k8s.example.com"   # the hostname that this is supposed to be called as, used for validation
+    services:                             # a list of whitelisted return URLs (could be multiple dashboards/services in the same EKS domain)
+      - http://dashboard.k8s.example.com/
 ```
+
+## Thanks
+
+This project is based of https://github.com/camptocamp/aws-iam-authenticator-proxy.
