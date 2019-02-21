@@ -12,7 +12,7 @@ RUN dep ensure -vendor-only
 #   github.com/fatih/color \
 #   github.com/mitchellh/go-homedir \
 #   github.com/spf13/viper
-COPY . .
+COPY main.go .
 RUN CGO_ENABLED=1 GOOS=linux go build -ldflags "-linkmode external -extldflags -static" -o /aws-iam-authenticator
 
 

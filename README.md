@@ -10,7 +10,7 @@ This tool tries to solve that by enabling transparent auth on an exposed dashboa
 The following requirements have to be fulfilled:
 
 * Use of EKS
-* The dashboard is exposed with an nginx-ingress using a configuration that is similar to [ingress-sample.yaml]. *Example-Flow: dashboard.k8s.example.com*
+* The dashboard is exposed with an nginx-ingress using a configuration that is similar to [dashboard-ingress.yaml.sample]. *Example-Flow: dashboard.k8s.example.com*
 * The container
   * for this service and the dashboard share the same main domain. *Example-Flow: k8s.example.com*
   * is reachable by the nginx ingress controller. *Example-Flow: cluster-auth.k8s.example.com*
