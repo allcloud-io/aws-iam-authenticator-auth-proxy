@@ -1,0 +1,37 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: aws-iam-authenticator-auth-proxy
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      service: aws-iam-authenticator-auth-proxy
+  template:
+    metadata:
+      labels:
+        service: aws-iam-authenticator-auth-proxy
+    spec:
+      containers:
+      - name: redis
+        image: aws-iam-authenticator-auth-proxy
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 8080
+        resources:
+          limits:
+            cpu: "10m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: aws-iam-authenticator-auth-proxy
+spec:
+  type: NodePort
+  selector:
+    service: aws-iam-authenticator-auth-proxy
+  ports:
+    - port: 8080
+      targetPort: 8080
+      protocol: TCP
+      name: aws-iam-authenticator-auth-proxy
