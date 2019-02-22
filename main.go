@@ -179,10 +179,13 @@ func main() {
 	http.HandleFunc("/", info)
 	http.HandleFunc("/validate", validate)
 
+	var listen = "0.0.0.0"
 	if authEnabled {
+		// if we can authenticate, we should not listen on external IPs! Otherwise credenials
+		// might be extracted over the network
+		listen = "127.0.0.1"
 		http.HandleFunc("/signin", signin)
 	}
-
-	log.Info("Listening on localhost:8080")
-	http.ListenAndServe("127.0.0.1:8080", nil)
+	log.Info(fmt.Sprintf("Listening on %s:8080", listen))
+	http.ListenAndServe(fmt.Sprintf("%s:8080", listen), nil)
 }
