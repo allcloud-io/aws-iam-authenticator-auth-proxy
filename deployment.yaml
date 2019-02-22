@@ -13,7 +13,7 @@ spec:
         service: aws-iam-authenticator-auth-proxy
     spec:
       containers:
-      - name: redis
+      - name: aws-iam-authenticator-auth-proxy
         image: aws-iam-authenticator-auth-proxy
         imagePullPolicy: Never
         ports:
@@ -27,11 +27,11 @@ kind: Service
 metadata:
   name: aws-iam-authenticator-auth-proxy
 spec:
-  type: NodePort
+  type: ClusterIP
   selector:
     service: aws-iam-authenticator-auth-proxy
   ports:
-    - port: 8080
+    - port: 80
       targetPort: 8080
       protocol: TCP
       name: aws-iam-authenticator-auth-proxy
